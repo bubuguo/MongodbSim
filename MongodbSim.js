@@ -74,14 +74,13 @@
 						var i, count1=0, count2=0;
 						for(i in obj1) count1++;
 						for(i in obj2) count2++;
-//						if(count1 !== count2)
-//							return NaN;
-						
-						
+						if(count1 !== count2)
+							return NaN;
+										
 						for(i in obj2){
 							if(obj1[i]){
 								var r = util.compare(obj1[i], obj2[i]);
-								if(r)
+								if(r !== 0)
 									return r;
 							}
 							else{
@@ -105,107 +104,80 @@
 				
 			
 			Collection.prototype = {
-			
-				//TODO: use this to replace find
-				createFilterChain: function(filters, data, path) {				
-					var funcs = {
-						$gt: function(predicate){
-							return function(item){
-								return util.compare(item, predicate) > 0;
+				optionsFilter: {
+					$gt: function(criteria, path){
+						return function(record){
+							var r = record;
+							for(var i=0, l=path.length; i<l; i++){
+								r = record[path[i]]
 							}
-						},
-						$default: function(key, path, value){
-							return function(item){
-								var o = item;
-								for(var i=0,l=path.length-1; i<l; i++){
-									o = o[path[i]]
-								}
-								return (o.hasOwnProperty(key)) && (value?o[key]==value:true);
-							}
+							return util.compare(r, criteria) > 0;
 						}
-					};
+					},
+					$lt: function(criteria, path){
+						return function(record){
+							var r = record;
+							for(var i=0, l=path.length; i<l; i++){
+								r = record[path[i]]
+							}
+							return util.compare(r, criteria) < 0;
+						}
+					},
 					
-					filters = filters || {};
-					path = path || [];
+					keyExist: function(key, path){
+						return function(record){
+							var r = record
+							for(var i=0, l=path.length; i<l; i++){
+								r = record[path[i]]
+							}
+							return r.hasOwnProperty(key);
+						}
+					}
+				},
+				/*
+					processing: If in processing, do NOT send the data to UI
+				*/
+			
+				find: function findWithCriterias(criterias, data, path, processing){
+					criterias = criterias || {};
 					data = data || this._data();
+					path = path || [];
 					
-					for(var filter in filters){
-						var fun = funcs[filter];
-						if(fun){
-							data = data.filter(fun(filters[filter]));
-						}
-						else{
-							path.push(filter);
-							var bEnd = typeof filters[filter] !== "object";
-							if(bEnd){
-								data = data.filter(funcs.$default(filter, path, filters[filter]));
-							}
-							else{
-								//data = data.filter(function(){return false});
-								data = data.filter(funcs.$default(filter, path));
-								data = this.createFilterChain(filters[filter], data, path);
-							}
-							path.pop();
-						}
-					}
-					
-					if(path.length == 0)
-						return ConsoleInterface.output(data);
-					else
+					if(data.length == 0)
 						return data;
-				},
-			
-				// has many defects need revise 
-				find: function(filters){
-					var funcs = {
-						$gt: function(predicate){
-							return function(item){
-								return util.compare(item, predicate) > 0;
+						
+					if(typeof criterias !== "object"){ //The end node, can compare directly
+						data = data.filter(function(record){
+							var r = record;
+							for(var i=0, l=path.length; i<l; i++){
+								r = record[path[i]]
 							}
-						},
-						$equal: function(predicate){
-							return function(item){
-								return util.compare(item, predicate) == 0;
+							return r == criterias;
+						});
+					}
+					else{
+						for(var cri in criterias){
+							var opt = this.optionsFilter[cri];
+							if(opt){
+								data = data.filter(opt(criterias[cri], path));
 							}
-						}
-					};
-					
-					var data = this._data();
-					if(filters){
-						for(var f in filters){
-							var fun = funcs[f];
-							if(fun){
-								var filter = fun(filters[f]);
+							else if(cri == "$or"){
+								data = findWithCriterias.call(this, criterias[cri][0], data, path, true).concat(findWithCriterias.call(this, criterias[cri][1], data, path, true));
 							}
 							else{
-								var criteria = {};
-								criteria[f] = filters[f];
-								var filter = funcs['$equal'](criteria);
+								data = data.filter(this.optionsFilter.keyExist(cri, path));
+								path.push(cri);
+								data = findWithCriterias.call(this, criterias[cri], data, path, true);
+								path.pop();
 							}
-							
-							data = data.filter(filter);
 						}
 					}
-					return ConsoleInterface.output(data);
+					
+					if(processing)
+						return data;
+					else 
+						return ConsoleInterface.output(data);
 				},
-				
-				//TODO: Complex objects are always unequal, it will have performance issue
-				/*distinct: function(){
-					var distinctData = [];
-					var data = this._data();
-					data.forEach(function(pRecord){
-						var sRecord = JSON.stringify(pRecord)
-						for(var i=0, length=strfy.length; i<length; i++){
-							//Seems JSON.stringify new String() every time so use substr to do the comparing
-							if(sRecord.substr() == strfy[i].substr())
-								break;
-						}
-						if(i == length){
-							strfy.push(sRecord);
-						}
-					});
-					return ConsoleInterface.output(strfy.map(function(item){return JSON.parse(item)}));
-				},*/
 				
 				save: function(record){
 					var data = this._data();
@@ -226,12 +198,17 @@
 			
 			
 			var coll = new Collection();
-			coll.save({"a":"123"} );
-			coll.save({"a":"123"} );
-			coll.save({"a":"123","_id":1, b:{a:1, b:"2"}} );
+			coll.save({"a":"1"} );
+			coll.save({"a":"12"} );
+			coll.save({"a":"123", b:{a:1, b:"2"}} );
 			coll.save({"a":"123","_id":1, b:{a:1, b:"2"}} );
 			
-			console.log(util.equal({"a":"123","_id":1, b:{a:1, b:"2"}}, {"a":"123","_id":1, b:{a:1, b:"4"}}));
+			console.log("test 1");
+			coll.find();
+			console.log("test 2");
+			coll.find({a:{$gt: "1"}})
+			console.log("test 3");
+			coll.find({$or: [{a: "1"}, {a:"12"}]})
 			
 		</script>
 	</body>
