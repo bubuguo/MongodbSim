@@ -25,42 +25,18 @@
 			util.genUuid = function(){
 				return Math.random()*10e16.toString();
 			};
+						
+			util.compare = function compare(obj1, obj2){
 			
-			//TODO: make it into record prototype?
-			util.equal = function(obj1, obj2){
-				if(typeof obj1 !== typeof obj2)
-					return false;
-				
-				switch(typeof obj1){
-					case "number": 
-					case "boolean": 
-						return obj1 == obj2;
-					case "string":
-						return obj1.substr() == obj2.substr();
-					case "object":
-						var i, count1=0, count2=0;
-						for(i in obj1) count1++;
-						for(i in obj2) count2++;
-						if(count1 !== count2)
-							return false;
-							
-						for(i in obj1){
-							if(obj2[i]){
-								if(!util.equal(obj1[i], obj2[i]))
-									return false;
-							}
-							else{
-								return false;
-							}
-						}
-						return true;
-					default:
-						return false;				
+				//when try to compare a array element
+				if(Array.isArray(obj1) && !Array.isArray(obj2)){
+					var r=[];
+					for(var i=0,l=obj1.length; i<l; i++){
+						r[i] = compare(obj1[i], obj2);
+					}
+					return r;
 				}
-				
-			};
 			
-			util.compare = function(obj1, obj2){
 				if(typeof obj1 !== typeof obj2)
 					return NaN;
 				
@@ -111,7 +87,8 @@
 							for(var i=0, l=path.length; i<l; i++){
 								r = record[path[i]]
 							}
-							return util.compare(r, criteria) > 0;
+							var result = util.compare(r, criteria);						
+							return Array.isArray(result) ? result.indexOf(1)>=0 : result==1;
 						}
 					},
 					$lt: function(criteria, path){
@@ -119,6 +96,24 @@
 							var r = record;
 							for(var i=0, l=path.length; i<l; i++){
 								r = record[path[i]]
+							}
+							var result = util.compare(r, criteria);						
+							return Array.isArray(result) ? result.indexOf(-1)>=0 : result==-1;
+						}
+					},
+					
+					$in: function(criteria, path){
+						return function(record){
+							var r = record;
+							for(var i=0, l=path.length; i<l; i++){
+								r = record[path[i]]
+							}
+							if(Array.isArray(r)){
+								for(var i=0,l=r.length; i<l; i++){
+									if (util.compare(r[i], criteria) < 0)
+										return true;
+								}
+								return false;
 							}
 							return util.compare(r, criteria) < 0;
 						}
@@ -139,20 +134,27 @@
 				*/
 			
 				find: function findWithCriterias(criterias, data, path, processing){
-					criterias = criterias || {};
+					if(criterias === undefined)
+						criterias = {};
 					data = data || this._data();
 					path = path || [];
 					
 					if(data.length == 0)
 						return data;
 						
-					if(typeof criterias !== "object"){ //The end node, can compare directly
+					if(typeof criterias !== "object" || Array.isArray(criterias)){ //The end node, can compare directly
 						data = data.filter(function(record){
 							var r = record;
 							for(var i=0, l=path.length; i<l; i++){
 								r = record[path[i]]
 							}
-							return r == criterias;
+							if(Array.isArray(r)){								
+								var result = util.compare(r, criterias);						
+								return Array.isArray(result) ? result.indexOf(0)>=0 : result==0;
+							}
+							else{
+								return r == criterias;
+							}
 						});
 					}
 					else{
@@ -193,7 +195,8 @@
 						record._id = util.genUuid();
 					}
 					this._data().push(record);
-				}
+				},
+				
 			};
 			
 			
@@ -201,6 +204,7 @@
 			coll.save({"a":"1"} );
 			coll.save({"a":"12"} );
 			coll.save({"a":"123", b:{a:1, b:"2"}} );
+			coll.save({"a":"1", b:{a:1, b:"2"}, c:[1,2,3]} );
 			coll.save({"a":"123","_id":1, b:{a:1, b:"2"}} );
 			
 			console.log("test 1");
@@ -209,6 +213,12 @@
 			coll.find({a:{$gt: "1"}})
 			console.log("test 3");
 			coll.find({$or: [{a: "1"}, {a:"12"}]})
+			console.log("test 4");
+			coll.find({c: 3})
+			console.log("test 5");
+			coll.find({c: [1,2,3]})
+			console.log("test 6");
+			coll.find({c:{$gt: 0}})
 			
 		</script>
 	</body>
