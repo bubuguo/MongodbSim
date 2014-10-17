@@ -4,7 +4,19 @@
 	</head>
 	
 	<body>
-		
+	<!--
+		function makeIterator(array){
+			var nextIndex = 0;
+			
+			return {
+			   next: function(){
+				   return nextIndex < array.length ?
+					   {value: array[nextIndex++], done: false} :
+					   {done: true};
+			   }
+			}
+		}
+		-->
 		<script>
 			//TODO: Make it a input/output module in Node environment
 			var ConsoleInterface = {};
@@ -35,6 +47,10 @@
 						r[i] = compare(obj1[i], obj2);
 					}
 					return r;
+				}
+				
+				if(obj2 instanceof RegExp){
+					return obj2.test(obj1) ? 0 : NaN;
 				}
 			
 				if(typeof obj1 !== typeof obj2)
@@ -68,7 +84,28 @@
 						return NaN;				
 				}
 			};
+			util.filters = {
+				$gt: function(item, criteria){
+					var result = util.compare(item, criteria);						
+					return Array.isArray(result) ? result.indexOf(1)>=0 : result==1;
+				},
+				$lt: function(item, criteria){
+					var result = util.compare(item, criteria);						
+					return Array.isArray(result) ? result.indexOf(-1)>=0 : result==-1;
+				
+				},
+				
+				$in: function(item, criteria){
+					for(var i=0,l=criteria.length; i<l; i++){
+						var result = util.compare(item, criteria[i]);
+						if(Array.isArray(result) ? result.indexOf(0)>=0 : result==0){
+							return true;
+						}
+					}
+					return false;
+				},
 			
+			};
 			
 		
 			var Collection = function(){
@@ -85,7 +122,7 @@
 						return function(record){
 							var r = record;
 							for(var i=0, l=path.length; i<l; i++){
-								r = record[path[i]]
+								r = record[path[i]];
 							}
 							var result = util.compare(r, criteria);						
 							return Array.isArray(result) ? result.indexOf(1)>=0 : result==1;
@@ -95,7 +132,7 @@
 						return function(record){
 							var r = record;
 							for(var i=0, l=path.length; i<l; i++){
-								r = record[path[i]]
+								r = record[path[i]];
 							}
 							var result = util.compare(r, criteria);						
 							return Array.isArray(result) ? result.indexOf(-1)>=0 : result==-1;
@@ -106,16 +143,15 @@
 						return function(record){
 							var r = record;
 							for(var i=0, l=path.length; i<l; i++){
-								r = record[path[i]]
+								r = record[path[i]];
 							}
-							if(Array.isArray(r)){
-								for(var i=0,l=r.length; i<l; i++){
-									if (util.compare(r[i], criteria) < 0)
-										return true;
+							for(var i=0,l=criteria.length; i<l; i++){
+								var result = util.compare(r, criteria[i]);
+								if(Array.isArray(result) ? result.indexOf(0)>=0 : result==0){
+									return true;
 								}
-								return false;
 							}
-							return util.compare(r, criteria) < 0;
+							return false;
 						}
 					},
 					
@@ -123,12 +159,13 @@
 						return function(record){
 							var r = record
 							for(var i=0, l=path.length; i<l; i++){
-								r = record[path[i]]
+								r = r[path[i]];
 							}
 							return r.hasOwnProperty(key);
 						}
 					}
 				},
+				
 				/*
 					processing: If in processing, do NOT send the data to UI
 				*/
@@ -142,11 +179,11 @@
 					if(data.length == 0)
 						return data;
 						
-					if(typeof criterias !== "object" || Array.isArray(criterias)){ //The end node, can compare directly
+					if(typeof criterias !== "object" || Array.isArray(criterias) || criterias instanceof  RegExp){ //The end node, can compare directly
 						data = data.filter(function(record){
 							var r = record;
 							for(var i=0, l=path.length; i<l; i++){
-								r = record[path[i]]
+								r = r[path[i]]
 							}
 							if(Array.isArray(r)){								
 								var result = util.compare(r, criterias);						
@@ -197,6 +234,47 @@
 					this._data().push(record);
 				},
 				
+				
+				
+				
+				find2: function(criterias){
+					return ConsoleInterface.output(this._data().filter(this.createFilterFunc(criterias)));
+				},
+
+				createFilterFunc: function (criterias){	
+					function tempfun(item, index, ary, cris){
+						if(cris === undefined)
+							cris = criterias;
+						for(var cri in cris){
+							var opt = util.filters[cri];
+							if(opt){
+								return opt(item, cris[cri]);
+							}
+							
+							if(cri == "$or"){
+								return(tempfun(item, index, ary, cris[cri][0]) || tempfun(item, index, ary, cris[cri][1]));
+							}
+							
+							if(!item.hasOwnProperty(cri))
+								return false;
+									
+							if(typeof cris[cri] == "object" && !(cris[cri] instanceof RegExp)){
+								if(!tempfun(item[cri], index, ary, cris[cri]))
+									return false;
+							}
+							else {
+								var result = util.compare(item[cri], cris[cri]);
+								if(Array.isArray(result) ? result.indexOf(0)<0 : result!==0)
+									return false;
+							}
+						}
+						
+						return true;
+					}
+					
+					return tempfun;
+				},
+				
 			};
 			
 			
@@ -206,19 +284,20 @@
 			coll.save({"a":"123", b:{a:1, b:"2"}} );
 			coll.save({"a":"1", b:{a:1, b:"2"}, c:[1,2,3]} );
 			coll.save({"a":"123","_id":1, b:{a:1, b:"2"}} );
+			coll.save({"a":"12", b:{c:{d:9}}} );
 			
 			console.log("test 1");
-			coll.find();
+			coll.find2();
 			console.log("test 2");
-			coll.find({a:{$gt: "1"}})
+			coll.find2({a:{$gt: "1"}})
 			console.log("test 3");
-			coll.find({$or: [{a: "1"}, {a:"12"}]})
+			coll.find2({$or: [{a: "1"}, {a:"12"}]})
 			console.log("test 4");
-			coll.find({c: 3})
+			coll.find2({c: 3})
 			console.log("test 5");
-			coll.find({c: [1,2,3]})
+			coll.find2({c: [1,2,3]})
 			console.log("test 6");
-			coll.find({c:{$gt: 0}})
+			coll.find2({c:{$gt: 0}})
 			
 		</script>
 	</body>
