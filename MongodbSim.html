@@ -22,20 +22,12 @@
 			coll.save({"_id":10, "name":{"first":"Martin", "last":"Odersky"}, "contribs":["Scala"]});
 		
 			coll.find({contribs:"UNIX"});
+			coll.find({"name": {"first":"John", "last":"Backus"}}, {_id:0, "name.first":1});
+			coll.find({"name": {"first":"John", "last":"Backus"}}, {_id:0, "name.first":0});
+			
 		</script>
 		
 		http://docs.mongodb.org/manual/reference/bios-example-collection/
 		
-		function makeIterator(array){
-			var nextIndex = 0;
-			
-			return {
-			   next: function(){
-				   return nextIndex < array.length ?
-					   {value: array[nextIndex++], done: false} :
-					   {done: true};
-			   }
-			}
-		}
 	</body>
 </html>

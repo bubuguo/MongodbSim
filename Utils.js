@@ -1,5 +1,26 @@
 var util = {};
 
+/*
+	deep clone object, and keep object type, need object prototype have such settings
+	xxx.prototype.constructor = xxx
+*/
+util.clone = function(obj){
+	if(obj == null || typeof(obj) != 'object')
+        return obj;
+
+    var temp = obj.constructor(obj); // changed
+	var type = util.typeof(temp);
+	if(type !== "object" && type !== "array")
+		return temp;
+
+    for(var key in obj) {
+        if(obj.hasOwnProperty(key)) {
+            temp[key] = util.clone(obj[key]);
+        }
+    }
+    return temp;
+};
+
 util.genObjectId = function(){
 	return new ObjectId();
 };
@@ -86,5 +107,23 @@ util.typeof = function(obj){
 	else if(Array.isArray(obj)){
 		return "array";
 	}
+	else if(obj instanceof ObjectId){
+		return "objectid";
+	}
+	else if(obj instanceof ISODate){
+		return "isodate";
+	}
 	return type;
+};
+
+util.makeAryIterator = function (array){
+	var nextIndex = 0;
+	return {
+		next: function(){
+			return nextIndex < array.length ? array[nextIndex++] : null;
+		},
+		hasNext: function(){
+			return nextIndex < array.length;
+		}
+	}
 };

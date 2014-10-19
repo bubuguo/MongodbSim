@@ -2,16 +2,11 @@ var ConsoleInterface = {};
 
 
 
-ConsoleInterface.output = function(pData){
-	if(Array.isArray(pData)){
-		pData.forEach(function(r){
-			console.log(tojson(r));
-		});
+ConsoleInterface.output = function(pIterator){
+	while(pIterator.hasNext()){
+		var record = pIterator.next();
+		console.log(tojson(record))
 	}
-	else{
-		console.log(JSON.stringify(pData));
-	}
-	return pData;
 }
 
 var Collection = function(){
@@ -56,9 +51,9 @@ Collection.prototype = {
 	find: function(criterias, projection){
 		//http://docs.mongodb.org/manual/reference/operator/query/
 		var result = this._data().filter(this.createFilterFunc(criterias));
-		if(projection)
-			result = result.map(this.createMapFunc(projection));
-		return ConsoleInterface.output(result);
+		projection = projection || {};
+		result = result.map(this.createMapFunc(projection));		
+		return ConsoleInterface.output(util.makeAryIterator(result));
 	},
 
 	createFilterFunc: function (criterias){	
@@ -66,28 +61,29 @@ Collection.prototype = {
 			if(cris === undefined)
 				cris = criterias;
 			for(var cri in cris){
+				var temp = item;
 				var opt = util.filters[cri];
 				if(opt){
-					return opt(item, cris[cri]);
+					return opt(temp, cris[cri]);
 				}
 				
 				if(cri == "$or"){
-					return(filterFun(item, index, ary, cris[cri][0]) || filterFun(item, index, ary, cris[cri][1]));
+					return(filterFun(temp, index, ary, cris[cri][0]) || filterFun(temp, index, ary, cris[cri][1]));
 				}
 				
 				var fields = cri.split('.');
 				for(var i=0,l=fields.length; i<l; i++){
-					if(!item.hasOwnProperty(cri))
+					if(!temp.hasOwnProperty(fields[i]))
 						return false;
-					item = item[cri];
+					temp = temp[fields[i]];
 				}
 								
 				if(util.typeof(cris[cri]) == "object"){
-					if(!filterFun(item, index, ary, cris[cri]))
+					if(!filterFun(temp, index, ary, cris[cri]))
 						return false;
 				}
 				else {
-					var result = util.compare(item, cris[cri]);
+					var result = util.compare(temp, cris[cri]);
 					if(Array.isArray(result) ? result.indexOf(0)<0 : result!==0)
 						return false;
 				}
@@ -140,13 +136,20 @@ Collection.prototype = {
 				}
 			}
 			else{ //Map is for exclude
-				for(var field in obj){
-					
+				result = util.clone(obj);
+				for(var field in proj){
+					var fs = field.split('.');
+					var toDelProp, toDelObj = result;
+					for(var i=0,l=fs.length; i<l; i++){
+						toDelObj = toDelObj[fs[i-1]] || result;
+						var temp = toDelObj[fs[i]];
+						if(temp === undefined)
+							break;
+					}	
+					delete toDelObj[fs[l-1]];			
 				}
 			}
-			
-			return result;
-			
+			return result;	
 		}
 		return mapFun;
 	},

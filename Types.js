@@ -9,12 +9,25 @@ a 3-byte counter, starting with a random value.
 
 */
 
-var ObjectId = function(){
-	this.str = Math.round(new Date()/1000).toString(16) + Math.random()*10e16.toString();
+var ObjectId = function(obj){
+	if(this instanceof ObjectId){
+		if(!this.hasOwnProperty("str")){ //contractor
+			this.str = Math.round(new Date()/1000).toString(16) + Math.random()*10e16.toString();
+		}
+		else{	//clone
+			var r = new ObjectId();
+			r.str = this.str;
+			return r;
+		}
+	}
+	else{ //String to ObjectId
+		return new ObjectId();
+	}
 };
 ObjectId.prototype = {
+	constructor: ObjectId,
 	toString: function(){
-		return "ObjectId(" + this.str + ")";
+		return "ObjectId(\"" + this.str + "\")";
 	},
 	
 	tojson: function(){
@@ -36,14 +49,30 @@ ObjectId.prototype = {
 	}
 };
 
-var ISODate = function(dataString){
-//    this.date = new Date(Date.parse(dataString));
-//	return ISODate(this.date);
-	return new Date(Date.parse(dataString));
+var ISODate = function(date){
+	if(this instanceof ISODate){
+		if(!this.hasOwnProperty("date")){ //contractor 
+			if(typeof date === "number")
+				this.date = new Date(date);
+			else
+				this.date = new Date(Date.parse(date));
+		}
+		else {//clone
+			return new ISODate(date.date);
+		}
+	}
+	else 
+		return new ISODate(date);
 };
-Date.prototype.tojson = function(){
-	return "ISODate(\"" + this.toJSON() + "\")";
-};
+//ISODate.prototype.tojson = function(){
+//	return "ISODate(\"" + this.date.toJSON() + "\")";
+//};
+ISODate.prototype = {
+	constructor: ISODate,
+	tojson: function(){
+		return "ISODate(\"" + this.date.toJSON() + "\")";
+	},
+}
 
 
 Array.prototype.tojson = function(){
