@@ -9,7 +9,7 @@ a 3-byte counter, starting with a random value.
 
 */
 
-var ObjectId = function(obj){
+var ObjectId = function(){
 	if(this instanceof ObjectId){
 		if(!this.hasOwnProperty("str")){ //contractor
 			this.str = Math.round(new Date()/1000).toString(16) + Math.random()*10e16.toString();
@@ -52,21 +52,18 @@ ObjectId.prototype = {
 var ISODate = function(date){
 	if(this instanceof ISODate){
 		if(!this.hasOwnProperty("date")){ //contractor 
-			if(typeof date === "number")
-				this.date = new Date(date);
-			else
+			if(typeof date === "string")
 				this.date = new Date(Date.parse(date));
+			else
+				this.date = new Date(date);
 		}
 		else {//clone
-			return new ISODate(date.date);
+			return new ISODate(this.date);
 		}
 	}
 	else 
 		return new ISODate(date);
 };
-//ISODate.prototype.tojson = function(){
-//	return "ISODate(\"" + this.date.toJSON() + "\")";
-//};
 ISODate.prototype = {
 	constructor: ISODate,
 	tojson: function(){
@@ -101,14 +98,16 @@ tojson = function(x) {
 		case "number":
 		case "boolean":
 			return "" + x;
-		case "object":{
+		case "object":{				
 			if(x.tojson){
 				return x.tojson();
 			}
 			var count = 0;
-			var r = "{";
+
+			//keep _id is the first property to output;
+			r = x._id ? "{\"_id\":" + tojson(x._id) + ", " : "{";		
 			for(var i in x){
-				if(!x.hasOwnProperty(i))
+				if(!x.hasOwnProperty(i) || i=="_id")
 					continue;
 				count++;
 				r+="\"";

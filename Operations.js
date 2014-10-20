@@ -64,31 +64,59 @@ Collection.prototype = {
 				var temp = item;
 				var opt = util.filters[cri];
 				if(opt){
-					return opt(temp, cris[cri]);
+					return opt(temp, cris[cri], filterFun);
 				}
 				
-				if(cri == "$or"){
-					return(filterFun(temp, index, ary, cris[cri][0]) || filterFun(temp, index, ary, cris[cri][1]));
+				var value = cris[cri];
+				if(cri.indexOf('.')==-1){
+					var nextcri = "";
+				}
+				else{
+					var nextcri = cri.substring(cri.indexOf('.')+1);
+					var cri = cri.substring(0, cri.indexOf('.'));
 				}
 				
-				var fields = cri.split('.');
-				for(var i=0,l=fields.length; i<l; i++){
-					if(!temp.hasOwnProperty(fields[i]))
-						return false;
-					temp = temp[fields[i]];
+				if(nextcri === ""){
+					if(temp.hasOwnProperty(cri)){
+						temp = temp[cri];
+						var result = util.compare(temp, value);
+						if(Array.isArray(result) ? result.indexOf(0)>=0 : result==0)
+							return true;
+					}
+					else if(Array.isArray(temp)){
+						for(var i=0, l=temp.length; i<l; i++){
+							if(temp[i].hasOwnProperty(cri)){
+								var tt = temp[i][cri];
+								var result = util.compare(tt, value);
+								if(Array.isArray(result) ? result.indexOf(0)>=0 : result==0)
+									return true;
+							}
+						}
+					}
+					return false;
 				}
-								
-				if(util.typeof(cris[cri]) == "object"){
-					if(!filterFun(temp, index, ary, cris[cri]))
-						return false;
+				else{
+					if(temp.hasOwnProperty(cri)){
+						temp = temp[cri];
+						var ttt = {};
+						ttt[nextcri] = value;
+						if(filterFun(temp, index, ary, ttt))
+							return true;
+					}
+					else if(Array.isArray(temp)){
+						for(var i=0, l=temp.length; i<l; i++){
+							if(temp[i].hasOwnProperty(cri)){
+								var tt = temp[i][cri];
+								var ttt = {};
+								ttt[nextcri] = value;
+								if(filterFun(tt, index, ary, ttt))
+									return true;
+							}
+						}
+					}
+					return false;
 				}
-				else {
-					var result = util.compare(temp, cris[cri]);
-					if(Array.isArray(result) ? result.indexOf(0)<0 : result!==0)
-						return false;
-				}
-			};
-			
+			}
 			return true;
 		}
 		
@@ -97,10 +125,9 @@ Collection.prototype = {
 	
 	createMapFunc : function(proj){
 		function mapFun(obj, index, ary){
-			var result = {};
-			var _id = proj._id;
-			if(_id === undefined)
-				result._id = obj._id;
+			var result;
+			var keepId = (proj._id === 0 || proj._id === false) ? false : true;
+			
 			var bIncludeMap = false;
 			for(var field in proj){
 				if(field == "_id")
@@ -108,30 +135,30 @@ Collection.prototype = {
 				bIncludeMap = (proj[field] !== 0);
 				break;
 			}
-			
+					
 			if(bIncludeMap){ // Map is for include
+				result = {};
+				if(keepId)
+					result._id = obj._id;
 				for(var field in proj){
 					if(field == "_id")
 						continue;
 						
 					var fs = field.split('.');
-					var value = obj;
+					var value = obj, newValue = result;
 					for(var i=0,l=fs.length; i<l; i++){
 						if(!value.hasOwnProperty(fs[i])){
 							break;							
 						}
+						
+						newValue = newValue[fs[i-1]] || result;
+						if(!newValue.hasOwnProperty(fs[i]))
+							newValue[fs[i]] = {};
 						value = value[fs[i]];
 					}
 					
 					if(i === l){
-						var temp = result;
-						for(var i=0,l=fs.length-1; i<l; i++){
-							if(temp[fs[i]] === undefined){
-								temp[fs[i]] = {};
-							}
-							temp = temp[fs[i]];
-						} 
-						temp[fs[i]] = value;
+						newValue[fs[l-1]] = util.clone(value);
 					}
 				}
 			}
@@ -147,6 +174,9 @@ Collection.prototype = {
 							break;
 					}	
 					delete toDelObj[fs[l-1]];			
+				}
+				if(!keepId){
+					delete result._id;
 				}
 			}
 			return result;	

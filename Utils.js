@@ -8,7 +8,7 @@ util.clone = function(obj){
 	if(obj == null || typeof(obj) != 'object')
         return obj;
 
-    var temp = obj.constructor(obj); // changed
+    var temp = obj.constructor();
 	var type = util.typeof(temp);
 	if(type !== "object" && type !== "array")
 		return temp;
@@ -78,13 +78,13 @@ util.filters = {
 		var result = util.compare(item, criteria);						
 		return Array.isArray(result) ? result.indexOf(1)>=0 : result==1;
 	},
-	$lt: function(item, criteria){
+	$gte: function(item, criteria){
 		var result = util.compare(item, criteria);						
-		return Array.isArray(result) ? result.indexOf(-1)>=0 : result==-1;
-	
+		return Array.isArray(result) ? (result.indexOf(1)>=0 || result.indexOf(0)>=0) : (result==1 || result==0);
 	},
-	
 	$in: function(item, criteria){
+		if(!Array.isArray(criteria))
+			throw {code: 17287, message: "BadValue $in or $nin needs an array"};
 		for(var i=0,l=criteria.length; i<l; i++){
 			var result = util.compare(item, criteria[i]);
 			if(Array.isArray(result) ? result.indexOf(0)>=0 : result==0){
@@ -93,7 +93,58 @@ util.filters = {
 		}
 		return false;
 	},
-
+	$lt: function(item, criteria){
+		var result = util.compare(item, criteria);						
+		return Array.isArray(result) ? result.indexOf(-1)>=0 : result==-1;
+	},
+	$lte: function(item, criteria){
+		var result = util.compare(item, criteria);						
+		return Array.isArray(result) ? (result.indexOf(-1)>=0 || result.indexOf(0)>=0) : (result==-1 || result==0);
+	},
+	$ne: function(item, criteria){
+		var result = util.compare(item, criteria);						
+		return Array.isArray(result) ? (result.indexOf(0)<0) : (result!==0);
+	},
+	$nin: function(item, criteria){
+		return !util.filters.$in(item, criteria);
+	},
+		
+	$and: function(item, criteria, filterFun){
+		if(!Array.isArray(criteria));
+			throw {code: 17287, message: "BadValue $and needs an array"};
+			
+		for(var i=0,l=criteria.length; i<l; i++){
+			if(!filterFun(item, null, null, criteria[i]))
+				return false;
+		}
+		return true;
+	},
+	$nor: function(item, criteria, filterFun){
+		if(!Array.isArray(criteria))
+			throw {code: 17287, message: "BadValue $nor needs an array"};
+			
+		for(var i=0,l=criteria.length; i<l; i++){
+			if(filterFun(item, null, null, criteria[i]))
+				return false;
+		}
+		return true;
+	},
+	$not: function(item, criteria, filterFun){
+		return !filterFun(item, null, null, criteria);
+	},
+	$or: function(item, criteria, filterFun){
+		if(!Array.isArray(criteria))
+			throw {code: 17287, message: "BadValue $or needs an array"};
+			
+		for(var i=0,l=criteria.length; i<l; i++){
+			if(filterFun(item, null, null, criteria[i]))
+				return true;
+		}
+		return false;
+	},
+	$exist: function(item, criteria, filterFun){
+		alert("exist");
+	},
 };
 
 util.typeof = function(obj){
