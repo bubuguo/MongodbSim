@@ -61,6 +61,7 @@ Collection.prototype = {
 			if(cris === undefined)
 				cris = criterias;
 				
+			continueNextKey:
 			for(var key in cris){
 				var temp = item;
 				var opt = util.filters[key];
@@ -85,29 +86,29 @@ Collection.prototype = {
 				if(Array.isArray(temp)){
 					for(var i=0, l=temp.length; i<l; i++){
 						if(temp[i].hasOwnProperty(key)){
-							bExist = true;
 							var tt = temp[i][key];
 							if(nextkey === ""){
 								if(util.typeof(value) == "object"){
 									if(filterFun(tt, index, ary, value))
-										return true;
+										continue continueNextKey;
 								}
 								else{
 									var result = util.compare(tt, value);
 									if(Array.isArray(result) ? result.indexOf(0)>=0 : result===0)
-										return true;
+										continue continueNextKey;
 								}
 							}
 							else{
 								if(filterFun(tt, index, ary, nextCri))
-									return true;									
+									continue continueNextKey;									
 							}
 						}
 					}
-				}
-				
+				}		
 				return false;
 			}
+			
+			return true;
 		}
 		
 		return filterFun;
