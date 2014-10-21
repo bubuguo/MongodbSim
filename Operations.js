@@ -60,64 +60,54 @@ Collection.prototype = {
 		function filterFun(item, index, ary, cris){
 			if(cris === undefined)
 				cris = criterias;
-			for(var cri in cris){
+				
+			for(var key in cris){
 				var temp = item;
-				var opt = util.filters[cri];
+				var opt = util.filters[key];
 				if(opt){
-					return opt(temp, cris[cri], filterFun);
+					return opt(temp, cris[key], filterFun);
 				}
 				
-				var value = cris[cri];
-				if(cri.indexOf('.')==-1){
-					var nextcri = "";
+				var value = cris[key];
+				if(key.indexOf('.')==-1){
+					var nextkey = "";
 				}
 				else{
-					var nextcri = cri.substring(cri.indexOf('.')+1);
-					var cri = cri.substring(0, cri.indexOf('.'));
+					var nextkey = key.substring(key.indexOf('.')+1);
+					var key = key.substring(0, key.indexOf('.'));
+					var nextCri = {};
+					nextCri[nextkey] = value;				
 				}
 				
-				if(nextcri === ""){
-					if(temp.hasOwnProperty(cri)){
-						temp = temp[cri];
-						var result = util.compare(temp, value);
-						if(Array.isArray(result) ? result.indexOf(0)>=0 : result==0)
-							return true;
-					}
-					else if(Array.isArray(temp)){
-						for(var i=0, l=temp.length; i<l; i++){
-							if(temp[i].hasOwnProperty(cri)){
-								var tt = temp[i][cri];
-								var result = util.compare(tt, value);
-								if(Array.isArray(result) ? result.indexOf(0)>=0 : result==0)
-									return true;
+				if(temp.hasOwnProperty(key)){ //This maybe slow, but has less code
+					temp = [temp]
+				}
+				if(Array.isArray(temp)){
+					for(var i=0, l=temp.length; i<l; i++){
+						if(temp[i].hasOwnProperty(key)){
+							bExist = true;
+							var tt = temp[i][key];
+							if(nextkey === ""){
+								if(util.typeof(value) == "object"){
+									if(filterFun(tt, index, ary, value))
+										return true;
+								}
+								else{
+									var result = util.compare(tt, value);
+									if(Array.isArray(result) ? result.indexOf(0)>=0 : result===0)
+										return true;
+								}
+							}
+							else{
+								if(filterFun(tt, index, ary, nextCri))
+									return true;									
 							}
 						}
 					}
-					return false;
 				}
-				else{
-					if(temp.hasOwnProperty(cri)){
-						temp = temp[cri];
-						var ttt = {};
-						ttt[nextcri] = value;
-						if(filterFun(temp, index, ary, ttt))
-							return true;
-					}
-					else if(Array.isArray(temp)){
-						for(var i=0, l=temp.length; i<l; i++){
-							if(temp[i].hasOwnProperty(cri)){
-								var tt = temp[i][cri];
-								var ttt = {};
-								ttt[nextcri] = value;
-								if(filterFun(tt, index, ary, ttt))
-									return true;
-							}
-						}
-					}
-					return false;
-				}
+				
+				return false;
 			}
-			return true;
 		}
 		
 		return filterFun;

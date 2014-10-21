@@ -142,8 +142,8 @@ util.filters = {
 		}
 		return false;
 	},
-	$exist: function(item, criteria, filterFun){
-		alert("exist");
+	$exists: function(item, criteria, filterFun){
+		alert("exists");
 	},
 };
 
