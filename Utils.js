@@ -142,9 +142,21 @@ util.filters = {
 		}
 		return false;
 	},
-	$exists: function(item, criteria, filterFun){
-		alert("exists");
+	$exists: function(item, criteria, filterFun){ //only handle $exists: true
+		if(criteria)
+			return true;
+		return false;
 	},
+};
+
+util.filters._isNoExistsCriterias = function(cri){
+	var count = 0;
+	if(cri.hasOwnProperty("$exists") && !cri["$exists"]){
+		for(var i in cri) count++;
+		if(count == 1)
+			return true;
+	}
+	return false;
 };
 
 util.typeof = function(obj){
