@@ -74,6 +74,7 @@ util.compare = function compare(obj1, obj2){
 	}
 };
 
+/* http://docs.mongodb.org/manual/reference/operator/query/ */
 util.filters = {
 	$gt: function(item, criteria){
 		var result = util.compare(item, criteria);						
@@ -150,10 +151,25 @@ util.filters = {
 	},
 	$type: function(item, criteria){
 		return util.typeof(item) === criteria;
+	},
+	$mod: function(item, criteria){
+		return (item % criteria[0]) == criteria[1];
+		//exception handler
 	}
 };
 
+util.filters._isNoExistsCriterias = function(cri){
+	var count = 0;
+	if(cri.hasOwnProperty("$exists") && !cri["$exists"]){
+		for(var i in cri) count++;
+		if(count == 1)
+			return true;
+	}
+	return false;
+};
+
 /*
+http://docs.mongodb.org/manual/reference/operator/query/type/
 Type	Number	Notes
 Double	1	 
 String	2	 
@@ -176,16 +192,6 @@ Min key	255	Query with -1.
 Max key	127
 */
 util.typeMap = {"1": "double", "2": "string", "3": "object", "4": "array", "5": "binary data", "6": "undefined", "7": "object id", "8": "boolean", "9": "date"}
-
-util.filters._isNoExistsCriterias = function(cri){
-	var count = 0;
-	if(cri.hasOwnProperty("$exists") && !cri["$exists"]){
-		for(var i in cri) count++;
-		if(count == 1)
-			return true;
-	}
-	return false;
-};
 
 util.typeof = function(obj){
 	var type = typeof obj;
