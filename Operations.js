@@ -84,13 +84,19 @@ Collection.prototype = {
 					temp = [temp]
 				}
 				if(Array.isArray(temp)){
+					var notExistCount = 0;
 					for(var i=0, l=temp.length; i<l; i++){
 						if(temp[i].hasOwnProperty(key)){
 							var tt = temp[i][key];
 							if(nextkey === ""){
 								if(util.typeof(value) == "object"){
-									if(filterFun(tt, index, ary, value))
+									if(filterFun(tt, index, ary, value)){
+										if(util.filters._isNoExistsCriterias(value)){
+											notExistCount++;
+											continue;
+										}
 										continue continueNextKey;
+									}
 								}
 								else{
 									var result = util.compare(tt, value);
@@ -99,12 +105,28 @@ Collection.prototype = {
 								}
 							}
 							else{
-								if(filterFun(tt, index, ary, nextCri))
-									continue continueNextKey;									
+								if(filterFun(tt, index, ary, nextCri)){
+									if(util.filters._isNoExistsCriterias(value)){
+										notExistCount++;
+										continue;
+									}
+									continue continueNextKey;
+								}
 							}
 						}
+						else{
+							notExistCount++;
+						}
 					}
-				}		
+					if(notExistCount == l){
+						if(util.filters._isNoExistsCriterias(value))
+							return true;
+					}
+				}
+				else{ //do not have the key
+					if(util.filters._isNoExistsCriterias(value))
+						return true;
+				}
 				return false;
 			}
 			

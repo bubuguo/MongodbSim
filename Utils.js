@@ -73,6 +73,7 @@ util.compare = function compare(obj1, obj2){
 			return NaN;				
 	}
 };
+
 util.filters = {
 	$gt: function(item, criteria){
 		var result = util.compare(item, criteria);						
@@ -142,8 +143,10 @@ util.filters = {
 		}
 		return false;
 	},
-	$exists: function(item, criteria, filterFun){
-		alert("exists");
+	$exists: function(item, criteria, filterFun){ //only handle $exists: true
+		if(criteria)
+			return true;
+		return false;
 	},
 	$type: function(item, criteria){
 		return util.typeof(item) === criteria;
@@ -173,6 +176,16 @@ Min key	255	Query with -1.
 Max key	127
 */
 util.typeMap = {"1": "double", "2": "string", "3": "object", "4": "array", "5": "binary data", "6": "undefined", "7": "object id", "8": "boolean", "9": "date"}
+
+util.filters._isNoExistsCriterias = function(cri){
+	var count = 0;
+	if(cri.hasOwnProperty("$exists") && !cri["$exists"]){
+		for(var i in cri) count++;
+		if(count == 1)
+			return true;
+	}
+	return false;
+};
 
 util.typeof = function(obj){
 	var type = typeof obj;
