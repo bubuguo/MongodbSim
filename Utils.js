@@ -155,7 +155,46 @@ util.filters = {
 	$mod: function(item, criteria){
 		return (item % criteria[0]) == criteria[1];
 		//exception handler
-	}
+	},
+	$regex: function(item, criteria){
+		return criteria.test(item);
+	},
+	$text: function(){ // not implement
+		return true;
+	},
+	$where: function(item, criteria){ // only support function now
+		if(typeof criteria == "function"){
+			if(obj)
+				var temp = obj;
+			var r = criteria.apply(item);
+			if(temp)
+				obj = temp;
+			return r;
+			
+		}
+	},
+	$all: function(item, criteria){
+		for(var t in criteria){
+			if (item.indexOf(t) < 0)
+				return false;
+		}
+		return true;
+	},
+	$elemMatch: function(item, criteria, filterFun){
+		nextArrayItem:
+		for(var t in item){
+			for(var c in criteria){
+				if(!filterFun(t, null, null, criteria[c]))(
+					continue nextArrayItem
+				}
+			}
+			return true;
+		}
+		return false;
+	},
+	$size: function(item, criteria){
+		return item.length === criteria;
+	},
 };
 
 util.filters._isNoExistsCriterias = function(cri){
