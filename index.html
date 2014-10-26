@@ -27,7 +27,8 @@
 			coll.find({"name": {"first":"John", "last":"Backus"}}, {_id:0, "name.first":1});
 			
 			coll.save({a:[{b:[{c:{d:1}}, {c:{e:2}}]}, {b:{c:{d:2}}}]});
-			
+
+//			coll.save({"a": {b:{c:{d:1}}}});
 		</script>
 		
 		http://docs.mongodb.org/manual/reference/bios-example-collection/

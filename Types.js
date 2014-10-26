@@ -103,9 +103,9 @@
 				//keep _id is the first property to output;
 				r = x._id ? "{\"_id\":" + exports.tojson(x._id) + ", " : "{";		
 				for(var i in x){
+					count++;
 					if(!x.hasOwnProperty(i) || i=="_id")
 						continue;
-					count++;
 					r+= "\"";
 					r += i;
 					r += "\":";

@@ -137,12 +137,136 @@ if(typeof require === "function"){
 			return filterFun;
 		},
 		
-		createMapFunc : function(proj){
+		createMapFunc : function(projection){
+			var proj = projection;
+			function isIncludeMap(proj){
+				for(var field in proj){
+					if(field == "_id" && proj===projection)
+						continue;
+						
+					if(typeof proj[field] === "object"){
+						return isIncludeMap(proj[field]);
+					}
+					return (proj[field] !== 0);
+				}
+				return false;
+			}
+			function cloneObjWithIncludeProj(obj, result, projs){
+				continueNextKey:
+				for(var key in projs){
+					if(key === "_id" && projs === projection)
+						continue;
+						
+					var value = projs[key];
+					if(key.indexOf('.')==-1){
+						var nextkey = "";
+					}
+					else{
+						var nextkey = key.substring(key.indexOf('.')+1);
+						var key = key.substring(0, key.indexOf('.'));
+					}			
+					if(!obj.hasOwnProperty(key)){
+						continue continueNextKey;
+					}
+					
+					if(nextkey !== ""){
+						if(Array.isArray(obj[key])){
+							if(!result.hasOwnProperty(key))
+								result[key] = [];
+							for(var i=0, l=obj[key].length; i<l; i++){
+								if(!result[key].hasOwnProperty(i))
+									result[key][i] = {};
+								var nextproj = {};
+								nextproj[nextkey] = value;
+								cloneObjWithIncludeProj(obj[key][i], result[key][i], nextproj);							
+							}
+						}
+						else{
+							if(!result.hasOwnProperty(key))
+								result[key] = {};
+							var nextproj = {};
+							nextproj[nextkey] = value;	
+							cloneObjWithIncludeProj(obj[key], result[key], nextproj);						
+						}
+					}
+					else{
+						if(typeof value === "object"){ //This is not allowed in Mongo
+							if(Array.isArray(obj[key])){
+								if(!result.hasOwnProperty(key))
+									result[key] = [];
+								for(var i=0, l=obj[key].length; i<l; i++){
+									if(!result[key].hasOwnProperty(i))
+										result[key][i] = {};
+									cloneObjWithIncludeProj(obj[key][i], result[key][i], value);							
+								}
+							}
+							else{
+								if(!result.hasOwnProperty(key))
+									result[key] = {};
+								cloneObjWithIncludeProj(obj[key], result[key], value);						
+							}
+						}
+						else{
+							result[key] = Utils.clone(obj[key]);
+						}
+					}
+				}
+			}
+			
+			function cloneObjWithExcludeProj(obj, result, projs){
+				for(var key in projs){
+					if(key === "_id" && projs === projection)
+						continue;
+					
+					var value = projs[key];
+					if(key.indexOf('.')==-1){
+						var nextkey = "";
+					}
+					else{
+						var nextkey = key.substring(key.indexOf('.')+1);
+						var key = key.substring(0, key.indexOf('.'));
+					}			
+					if(!obj.hasOwnProperty(key)){
+						continue;
+					}
+					
+					if(nextkey !== ""){
+						if(Array.isArray(obj[key])){
+							for(var i=0, l=obj[key].length; i<l; i++){
+								var nextproj = {};
+								nextproj[nextkey] = value;
+								cloneObjWithExcludeProj(obj[key][i], result[key][i], nextproj);							
+							}
+						}
+						else{
+							var nextproj = {};
+							nextproj[nextkey] = value;	
+							cloneObjWithExcludeProj(obj[key], result[key], nextproj);						
+						}
+					}
+					else{
+						if(typeof value === "object"){ //This is not allowed in Mongo
+							if(Array.isArray(obj[key])){
+								for(var i=0, l=obj[key].length; i<l; i++){
+									cloneObjWithExcludeProj(obj[key][i], result[key][i], value);							
+								}
+							}
+							else{
+								cloneObjWithExcludeProj(obj[key], result[key], value);						
+							}
+						}
+						else{
+							delete result[key];
+						}
+					}					
+					
+				}
+			}
+			
 			function mapFun(obj, index, ary){
 				var result;
-				var keepId = (proj._id === 0 || proj._id === false) ? false : true;
-				
-				var bIncludeMap = false;
+				var keepId = (proj._id === 0 || proj._id === false) ? false : true;		
+				var bIncludeMap = isIncludeMap(proj);
 				for(var field in proj){
 					if(field == "_id")
 						continue;
@@ -152,43 +276,14 @@ if(typeof require === "function"){
 						
 				if(bIncludeMap){ // Map is for include
 					result = {};
-					if(keepId)
-						result._id = obj._id;
-					for(var field in proj){
-						if(field == "_id")
-							continue;
-							
-						var fs = field.split('.');
-						var value = obj, newValue = result;
-						for(var i=0,l=fs.length; i<l; i++){
-							if(!value.hasOwnProperty(fs[i])){
-								break;							
-							}
-							
-							newValue = newValue[fs[i-1]] || result;
-							if(!newValue.hasOwnProperty(fs[i]))
-								newValue[fs[i]] = {};
-							value = value[fs[i]];
-						}
-						
-						if(i === l){
-							newValue[fs[l-1]] = Utils.clone(value);
-						}
-					}
+					if(keepId) result._id = obj._id;
+					//Mongo use the most restrict proj, need filter the projections. for example {"a.b.c.d":1, "a.b.c":1}, only {"a.b.c.d":1} work
+					cloneObjWithIncludeProj(obj, result, proj);
 				}
 				else{ //Map is for exclude
 					result = Utils.clone(obj);
-					for(var field in proj){
-						var fs = field.split('.');
-						var toDelProp, toDelObj = result;
-						for(var i=0,l=fs.length; i<l; i++){
-							toDelObj = toDelObj[fs[i-1]] || result;
-							var temp = toDelObj[fs[i]];
-							if(temp === undefined)
-								break;
-						}	
-						delete toDelObj[fs[l-1]];			
-					}
+					//Mongo use the most restrict proj, need filter the projections. for example {"a.b.c.d":1, "a.b.c":1}, only {"a.b.c.d":1} work
+					cloneObjWithExcludeProj(obj, result, proj);
 					if(!keepId){
 						delete result._id;
 					}
