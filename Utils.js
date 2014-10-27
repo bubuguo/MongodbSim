@@ -140,7 +140,7 @@ if(typeof require === "function"){
 			}
 			return false;
 		},
-		$exists: function(item, criteria, filterFun){ //only handle $exists: true
+		$exists: function(item, criteria, filterFun){ //only handle $exists: 1, $exists:0 is handled in filter function
 			if(criteria)
 				return true;
 			return false;
@@ -153,7 +153,7 @@ if(typeof require === "function"){
 			//exception handler
 		},
 		$regex: function(item, criteria){
-			return criteria.test(item);
+			return RegExp(criteria).test(item);
 		},
 		$text: function(){ // not implement
 			return true;
@@ -178,13 +178,15 @@ if(typeof require === "function"){
 		},
 		$elemMatch: function(item, criteria, filterFun){
 			nextArrayItem:
-			for(var t in item){
+			for(var i=0,l=item.length; i<l; i++){
 				for(var c in criteria){
-					if(!filterFun(t, null, null, criteria[c])){
+					var cri = {};
+					cri[c] = criteria[c];
+					if(!filterFun(item[i], null, null, cri)){
 						continue nextArrayItem
 					}
 				}
-				return true;
+				return true;				
 			}
 			return false;
 		},

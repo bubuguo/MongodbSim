@@ -123,6 +123,18 @@
 		}
 	};
 	
+	//MinKey and MaxKey compare less than and greater than all other possible BSON element values, respectively, and exist primarily for internal use.
+	MaxKey = function(){};
+	MaxKey.prototype.tojson = function(){
+		return "{\"$maxKey\": 1}";
+	}
+	MaxKey = new MaxKey();
+	MinKey = function(){};
+	MinKey.prototype.tojson = function(){
+		return "{\"$minKey\": 1}";
+	}
+	MinKey = new MinKey();
+	
 	/*
 	http://docs.mongodb.org/manual/reference/operator/query/type/
 	Only have one type for Double, 32-bit Integer and 64-bit Integer
@@ -153,6 +165,20 @@
 		return exports.Object;
 	};
 	
+	Map = function(){
+		this.keys = [];
+		this.values = [];
+	};
+	Map.prototype = {
+		put: function(key, value){
+			this.keys[this.keys.length] = key;
+			this.values[this.values.length] = value;
+		},
+		
+		get: function(key){
+			return this.values[this.keys.indexOf(key)];
+		}		
+	};
 	
 	exports.Double=1;
 	exports.String=2;

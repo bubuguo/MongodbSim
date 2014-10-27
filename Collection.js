@@ -51,13 +51,15 @@ if(typeof require === "function"){
 		
 		find: function(criterias, projection){
 			//http://docs.mongodb.org/manual/reference/operator/query/
-			var result = this._data().filter(this.createFilterFunc(criterias));
+			var context = {};
+			var result = this._data().filter(this.createFilterFunc(criterias, context));
 			projection = projection || {};
-			result = result.map(this.createMapFunc(projection));
+			result = result.map(this.createMapFunc(projection, context));
 			return (this.io) ? this.io.output(result) : result;
 		},
 
-		createFilterFunc: function (criterias){	
+		createFilterFunc: function (criterias, context){
+			context.matchedAryEle = new Map();
 			function filterFun(item, index, ary, cris){
 				if(cris === undefined)
 					cris = criterias;
@@ -67,7 +69,10 @@ if(typeof require === "function"){
 					var temp = item;
 					var opt = Utils.filters[key];
 					if(opt){
-						return opt(temp, cris[key], filterFun);
+						if(opt(temp, cris[key], filterFun)) 
+							continue
+						else
+							return false;
 					}
 					
 					var value = cris[key];
@@ -96,13 +101,16 @@ if(typeof require === "function"){
 												notExistCount++;
 												continue;
 											}
+											context.matchedAryEle.put(temp, i);
 											continue continueNextKey;
 										}
 									}
 									else{
 										var result = Utils.compare(tt, value);
-										if(Array.isArray(result) ? result.indexOf(0)>=0 : result===0)
+										if(Array.isArray(result) ? result.indexOf(0)>=0 : result===0){
+											context.matchedAryEle.put(temp, i);
 											continue continueNextKey;
+										}
 									}
 								}
 								else{
@@ -111,6 +119,7 @@ if(typeof require === "function"){
 											notExistCount++;
 											continue;
 										}
+										context.matchedAryEle.put(temp, i);
 										continue continueNextKey;
 									}
 								}
@@ -137,7 +146,7 @@ if(typeof require === "function"){
 			return filterFun;
 		},
 		
-		createMapFunc : function(projection){
+		createMapFunc : function(projection, context){
 			var proj = projection;
 			function isIncludeMap(proj){
 				for(var field in proj){
@@ -167,6 +176,19 @@ if(typeof require === "function"){
 					}			
 					if(!obj.hasOwnProperty(key)){
 						continue continueNextKey;
+					}
+					
+					if(Array.isArray(obj[key])){
+						if(nextkey === "$" || nextkey.substr(-2) === ".$"){						
+							if(!result.hasOwnProperty(key))
+								result[key] = [];
+							var index = context.matchedAryEle.get(obj[key]);
+							if(index === undefined)
+								index = 0;						
+							result[key][0] = Utils.clone(obj[key][index])
+
+							continue continueNextKey;
+						}
 					}
 					
 					if(nextkey !== ""){
@@ -213,6 +235,7 @@ if(typeof require === "function"){
 				}
 			}
 			
+			//obj can be not used in exclude mode, for it has been cloned to result
 			function cloneObjWithExcludeProj(obj, result, projs){
 				for(var key in projs){
 					if(key === "_id" && projs === projection)
