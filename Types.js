@@ -69,6 +69,9 @@
 	
 	
 	Array.prototype.tojson = function(){
+		if(this.length === 0)
+			return '[]';
+			
 		var r = '[';
 		for(var i=0, l=this.length-1; i<l; i++){
 			r += exports.tojson(this[i]);

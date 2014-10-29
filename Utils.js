@@ -49,13 +49,20 @@ if(typeof require === "function"){
 				return obj1==obj2?0:NaN;
 			case "object":
 				var i, count1=0, count2=0;
-				for(i in obj1) count1++;
-				for(i in obj2) count2++;
+				for(i in obj1) 
+					if(obj1.hasOwnProperty(i))
+						count1++;
+				for(i in obj2)
+					if(obj2.hasOwnProperty(i))
+						count2++;
+						
 				if(count1 !== count2)
 					return NaN;
 								
 				for(i in obj2){
-					if(obj1[i]){
+					if(!obj2.hasOwnProperty(i))
+						continue;
+					if(obj1.hasOwnProperty(i)){
 						var r = exports.compare(obj1[i], obj2[i]);
 						if(r !== 0)
 							return r;

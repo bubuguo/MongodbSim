@@ -178,29 +178,60 @@ if(typeof require === "function"){
 						continue continueNextKey;
 					}
 					
-					if(Array.isArray(obj[key])){
+					var currentObj = obj[key];
+					
+					//Handle Projection Operators $, $elemMatch and $slice
+					if(Array.isArray(currentObj)){
 						if(nextkey === "$" || nextkey.substr(-2) === ".$"){						
 							if(!result.hasOwnProperty(key))
 								result[key] = [];
-							var index = context.matchedAryEle.get(obj[key]);
+							var index = context.matchedAryEle.get(currentObj);
 							if(index === undefined)
 								index = 0;						
-							result[key][0] = Utils.clone(obj[key][index])
+							result[key][0] = Utils.clone(currentObj[index])
 
 							continue continueNextKey;
+						}
+						
+						if(value.hasOwnProperty("$slice")){
+							if(Array.isArray(value["$slice"])){
+								var start = value["$slice"][0];
+								if(start < -currentObj.length)
+									start = 0;
+								else if(start < 0)
+									start = currentObj.length + start;
+								var end = start + value["$slice"][1];
+								currentObj = currentObj.slice(start, end);
+							}
+							else{
+								if(value["$slice"]<-currentObj.length){
+									var start = 0;
+									var end = currentObj.length;
+								}
+								else if(value["$slice"] >= 0){
+									var start = 0;
+									var end = value["$slice"];
+								}
+								else{
+									var start = currentObj.length + value["$slice"];
+									var end = currentObj.length;
+								}
+								currentObj = currentObj.slice(start, end);
+							}
+							value = 1;
 						}
 					}
 					
 					if(nextkey !== ""){
-						if(Array.isArray(obj[key])){
+						if(Array.isArray(currentObj)){
 							if(!result.hasOwnProperty(key))
 								result[key] = [];
-							for(var i=0, l=obj[key].length; i<l; i++){
+							for(var i=0, l=currentObj.length; i<l; i++){
 								if(!result[key].hasOwnProperty(i))
 									result[key][i] = {};
 								var nextproj = {};
 								nextproj[nextkey] = value;
-								cloneObjWithIncludeProj(obj[key][i], result[key][i], nextproj);							
+								cloneObjWithIncludeProj(currentObj[i], result[key][i], nextproj);							
 							}
 						}
 						else{
@@ -208,28 +239,28 @@ if(typeof require === "function"){
 								result[key] = {};
 							var nextproj = {};
 							nextproj[nextkey] = value;	
-							cloneObjWithIncludeProj(obj[key], result[key], nextproj);						
+							cloneObjWithIncludeProj(currentObj, result[key], nextproj);						
 						}
 					}
 					else{
 						if(typeof value === "object"){ //This is not allowed in Mongo
-							if(Array.isArray(obj[key])){
+							if(Array.isArray(currentObj)){
 								if(!result.hasOwnProperty(key))
 									result[key] = [];
-								for(var i=0, l=obj[key].length; i<l; i++){
+								for(var i=0, l=currentObj.length; i<l; i++){
 									if(!result[key].hasOwnProperty(i))
 										result[key][i] = {};
-									cloneObjWithIncludeProj(obj[key][i], result[key][i], value);							
+									cloneObjWithIncludeProj(currentObj[i], result[key][i], value);							
 								}
 							}
 							else{
 								if(!result.hasOwnProperty(key))
 									result[key] = {};
-								cloneObjWithIncludeProj(obj[key], result[key], value);						
+								cloneObjWithIncludeProj(currentObj, result[key], value);						
 							}
 						}
 						else{
-							result[key] = Utils.clone(obj[key]);
+							result[key] = Utils.clone(currentObj);
 						}
 					}
 				}
